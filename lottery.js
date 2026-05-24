@@ -39,16 +39,15 @@ function decayPct(currentPct) {
 }
 
 const DEFAULT_ITEMS = [
-    { id: 1, name: '积分清零', type: 'negative', pct: 10, easterEgg: '', easterSound: 'sad' },
-    { id: 2, name: '积分翻倍', type: 'positive', pct: 10, easterEgg: '', easterSound: 'tada' },
-    { id: 3, name: '积分增长类', type: 'positive', pct: 15, easterEgg: '', easterSound: 'drum' },
-    { id: 4, name: '无事发生', type: 'neutral', pct: 20, easterEgg: '', easterSound: 'none' },
-    { id: 5, name: '积分交换', type: 'special', pct: 10, easterEgg: '', easterSound: 'drum' },
-    { id: 6, name: '积分一天翻倍卡', type: 'special', pct: 10, easterEgg: '', easterSound: 'tada' },
-    { id: 7, name: '奶茶一杯~', type: 'positive', pct: 10, easterEgg: '', easterSound: 'meow' },
-    { id: 8, name: '再来一次！', type: 'positive', pct: 10, easterEgg: '', easterSound: 'tada' },
-    { id: 9, name: '作业', type: 'negative', pct: 5, easterEgg: '', easterSound: 'sad' },
-    { id: 10, name: '积分减少类', type: 'negative', pct: 15, easterEgg: '', easterSound: 'sad' }
+    { id: 2, name: '积分翻倍', type: 'positive', pct: 7, easterEgg: '', easterSound: 'tada' },
+    { id: 3, name: '积分增长类', type: 'positive', pct: 30, easterEgg: '', easterSound: 'drum' },
+    { id: 4, name: '无事发生', type: 'neutral', pct: 7, easterEgg: '', easterSound: 'none' },
+    { id: 5, name: '积分交换', type: 'special', pct: 8, easterEgg: '', easterSound: 'drum' },
+    { id: 6, name: '积分一天翻倍卡', type: 'special', pct: 7, easterEgg: '', easterSound: 'tada' },
+    { id: 7, name: '奶茶一杯~', type: 'positive', pct: 7, easterEgg: '', easterSound: 'meow' },
+    { id: 8, name: '再来一次！', type: 'positive', pct: 7, easterEgg: '', easterSound: 'tada' },
+    { id: 9, name: '作业', type: 'negative', pct: 7, easterEgg: '', easterSound: 'sad' },
+    { id: 10, name: '积分减少类', type: 'negative', pct: 20, easterEgg: '', easterSound: 'sad' }
 ];
 
 // 按百分比将奖项展开为奖池（始终精确为100个，几率严格=pct%）
@@ -133,9 +132,11 @@ function loadAll() {
     try { selectedSound = localStorage.getItem('l_sound')||'meow'; } catch(e){}
     try { soundOn = localStorage.getItem('l_soundOn')!=='false'; } catch(e){}
     try { soundVolume = parseFloat(localStorage.getItem('l_volume'))||0.5; } catch(e){}
-    try { slotDebugMode = localStorage.getItem('l_slot_debug')==='true'; } catch(e){}
-    try { slotDebugD1 = parseInt(localStorage.getItem('l_slot_d1'))||0; } catch(e){}
-    try { slotDebugD2 = parseInt(localStorage.getItem('l_slot_d2'))||0; } catch(e){}
+    // 调试模式不从 localStorage 自动恢复，避免无意中固定老虎机结果
+    // 需要在配置面板手动勾选"调试模式"才会生效
+    slotDebugMode = false;
+    slotDebugD1 = 0;
+    slotDebugD2 = 0;
     // 加载衰减开关（默认开启）
     try { decayEnabled = localStorage.getItem('l_decay') !== 'false'; } catch(e){}
     // 初始化 currentPctMap：从 items 读取每个奖项的原始 pct
@@ -231,9 +232,9 @@ function buildWheelCache(sz, dpr) {
         // 文字 - 沿径向排列，左半边翻转使其可读
         const ma = sa + sliceAngle / 2;
         const na = ((ma % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-        const fontSize = Math.max(10, Math.round(r * 0.065));
+        const fontSize = Math.max(13, Math.round(r * 0.085));
         const dist = r * 0.55;
-        const displayName = it.name.length > 7 ? it.name.substring(0, 7) + '..' : it.name;
+        const displayName = it.name.length > 9 ? it.name.substring(0, 9) + '..' : it.name;
 
         cacheCtx.save();
         cacheCtx.translate(cx, cy);  // 移到圆心
@@ -358,10 +359,38 @@ function doSpin() {
 
     initAudio(); spinning=true;
 
-    const spins = 5+Math.random()*4;
-    const final = Math.random()*360;
-    const totalRot = rot + spins*360 + final;
-    const dur = 3000+Math.random()*1500;
+    // ★ 直接从 mergedData 按 count 权重随机选（不绕 pool 映射，避免指针不匹配）
+    const totalCount = mergedData.reduce((sum, d) => sum + d.count, 0);
+    let rand = Math.floor(Math.random() * totalCount);
+    let targetMergedIdx = 0, accCount = 0;
+    for (let i = 0; i < mergedData.length; i++) {
+        accCount += mergedData[i].count;
+        if (rand < accCount) { targetMergedIdx = i; break; }
+    }
+    const resultItem = mergedData[targetMergedIdx];
+
+    // 计算该扇区在轮盘上的角度范围（角度从正右侧=0°顺时针计）
+    // mergedData 各扇区按顺序依次占据 [0, 360)，与 buildWheelCache 一致
+    let sectorAngleStart = 0;
+    for (let i = 0; i < targetMergedIdx; i++) {
+        sectorAngleStart += (360 * mergedData[i].count) / totalCount;
+    }
+    const sectorAngleRange = (360 * mergedData[targetMergedIdx].count) / totalCount;
+    const targetAngle = sectorAngleStart + Math.random() * sectorAngleRange; // 扇区内随机落点
+
+    // 指针在顶部（270°方向）
+    // 目标：轮盘最终旋转到 rot_end 使得 (targetAngle + rot_end) % 360 = 270
+    // 即 rot_end % 360 = (270 - targetAngle + 360) % 360
+    const targetEndRot = (270 - targetAngle + 360) % 360;
+    // 当前 rot % 360（canvas 旋转周期=360°，所以只需处理余数）
+    const curRotMod = ((rot % 360) + 360) % 360;
+    // 从当前位置到目标还需要转的角度（0~359）
+    let rotDiff = targetEndRot - curRotMod;
+    if (rotDiff < 0) rotDiff += 360;
+
+    const spins = 7 + Math.floor(Math.random() * 3); // 7-9圈，有变化但都很快
+    const totalRot = rot + spins * 360 + rotDiff;
+    const dur = 2000 + Math.random() * 600; // 2.0-2.6s，有轻微变化但总体统一
     let st=null, lastTick=0;
 
     function anim(t){
@@ -370,29 +399,13 @@ function doSpin() {
         const eo = 1-Math.pow(1-p,3);
         rot = totalRot*eo;
         drawWheel();
-        if(soundOn&&p<0.88){
-            const tk=Math.floor(rot/12);
+        if(soundOn&&p<0.85){
+            const tk=Math.floor(rot/8); // ticks更密，配合转速
             if(tk !== lastTick){lastTick=tk; playTick();}
         }
         if(p<1) requestAnimationFrame(anim);
         else {
             spinning=false;
-            // 根据最终角度找到合并项
-            const nr = rot % 360;
-            const normalizedAngle = (360 - nr + 270) % 360;
-
-            let accumulatedAngle = 0;
-            const totalPool = pool.length;
-            let resultItem = null;
-            for(let i=0; i<mergedData.length; i++){
-                const sliceAngle = (360 * mergedData[i].count) / totalPool;
-                accumulatedAngle += sliceAngle;
-                if(normalizedAngle <= accumulatedAngle){
-                    resultItem = mergedData[i];
-                    break;
-                }
-            }
-            if(!resultItem && mergedData.length>0) resultItem = mergedData[mergedData.length-1];
 
             if(resultItem){
                 showResult(resultItem);
@@ -439,7 +452,14 @@ function showResult(item) {
         neutral:'😐 无事发生...',
         special:'⭐ 恭喜！获得特殊奖励！'
     };
-    sub.textContent=msgs[item.type]||'';
+    const isSwap = item.name.includes('积分交换');
+    const isGrowth = item.name.includes('积分增长');
+    const isDecline = item.name.includes('积分减少');
+    if (isGrowth || isDecline) {
+        sub.textContent = '老虎机来咯！';
+    } else {
+        sub.textContent = isSwap ? '🔄 随机抽取一人，获得ta 50%（向下取整）的积分！' : (msgs[item.type]||'');
+    }
 
     ov.classList.add('show');
 
@@ -450,9 +470,9 @@ function showResult(item) {
 
     addHist(item);
 
-    // 积分增长类 / 积分减少类 → 更快弹出老虎机
-    if (item.name === '积分增长类' || item.name === '积分减少类') {
-        const isPositive = item.name === '积分增长类';
+    // 积分增长类 / 积分减少类 → 弹出老虎机
+    if (isGrowth || isDecline) {
+        const isPositive = isGrowth;
         // 1秒后启动emoji退出动画
         slotTriggerTimer1 = setTimeout(() => {
             img.classList.add('emoji-exit');
@@ -819,62 +839,108 @@ function clearHist(){if(confirm('清空历史？')){history=[];save('history',hi
 let slotAnimRaf = null;
 let slotStopRequested = false;
 let slotIsPositive = true;
-let slotFinalDigit1 = 0;
-let slotFinalDigit2 = 0;
+let slotReels = [];
+let slotFrameCount = 0;
+let lastSlotResult = -1; // 结果防重复（整个两位数）
 
 function showSlot(isPositive) {
     const overlay = $('slotOverlay');
     const title = $('slotTitle');
     title.textContent = isPositive ? '🎰 积分增长老虎机 🎰' : '🎰 积分减少老虎机 🎰';
+
     $('slot0').textContent = '0';
-    $('slot1').textContent = '?';
-    $('slot2').textContent = '?';
+    $('slot1').textContent = '0';
+    $('slot2').textContent = '0';
     $('slot0').classList.remove('stopped');
     $('slot1').classList.remove('stopped');
     $('slot2').classList.remove('stopped');
+    $('slot0').style.display = ''; // 百位显示（始终为0）
     $('slotResult').textContent = '';
     $('slotResult').className = 'slot-result';
     $('slotStopBtn').style.display = '';
     $('slotCloseBtn').style.display = 'none';
 
     slotIsPositive = isPositive;
+    slotStopRequested = false;
+    slotFrameCount = 0;
+
+    let f0, f1, f2;
 
     if (slotDebugMode) {
-        slotFinalDigit1 = slotDebugD1;
-        slotFinalDigit2 = slotDebugD2;
+        f0 = 0; f1 = slotDebugD1; f2 = slotDebugD2;
     } else {
-        const r1 = Math.random() * 100;
-        if (r1 < 5) slotFinalDigit1 = 2;
-        else if (r1 < 30) slotFinalDigit1 = 1;
-        else slotFinalDigit1 = 0;
-        slotFinalDigit2 = Math.floor(Math.random() * 10);
+        // 百位：始终为 0（显示三列但结果两位数）
+        f0 = 0;
+
+        // 结果（两位数）不与上次重复
+        let fullResult;
+        let attempts = 0;
+        do {
+            // 十位：增长/减少 区分概率
+            let d1;
+            const r1 = Math.random() * 100;
+            if (isPositive) {
+                if (r1 < 10) d1 = 2;
+                else if (r1 < 45) d1 = 1;
+                else d1 = 0;
+            } else {
+                if (r1 < 5) d1 = 2;
+                else if (r1 < 15) d1 = 1;
+                else d1 = 0;
+            }
+            // 个位：0-9 纯随机，十位=0时个位≠0
+            let d2 = Math.floor(Math.random() * 10);
+            if (d1 === 0 && d2 === 0) {
+                d2 = 1 + Math.floor(Math.random() * 9);
+            }
+            fullResult = d1 * 10 + d2;
+            attempts++;
+        } while (fullResult === lastSlotResult && lastSlotResult >= 0 && attempts < 20);
+
+        f1 = Math.floor(fullResult / 10);
+        f2 = fullResult % 10;
+        lastSlotResult = fullResult;
     }
 
-    slotStopRequested = false;
+    // 更新左侧规则说明
+    const infoEl = $('slotInfoContent');
+    infoEl.innerHTML = isPositive
+        ? '<div class="slot-rule-row"><span class="slot-rule-label">十位(d1)</span><span class="slot-rule-val">10%概率=2<br>35%概率=1<br>55%概率=0</span></div>' +
+          '<div class="slot-rule-row"><span class="slot-rule-label">个位(d2)</span><span class="slot-rule-val">0-9 随机<br>（十位=0时个位≠0）</span></div>' +
+          '<div class="slot-rule-note">抽取结果不与上次重复</div>'
+        : '<div class="slot-rule-row"><span class="slot-rule-label">十位(d1)</span><span class="slot-rule-val">5%概率=2<br>10%概率=1<br>85%概率=0</span></div>' +
+          '<div class="slot-rule-row"><span class="slot-rule-label">个位(d2)</span><span class="slot-rule-val">0-9 随机<br>（十位=0时个位≠0）</span></div>' +
+          '<div class="slot-rule-note">抽取结果不与上次重复</div>';
+
+    // 三列滚动（百位也转转好看）
+    slotReels = [
+        { current: Math.floor(Math.random() * 10), final: f0, speed: 6, stopDelay: 25, el: $('slot0'), stopped: false, converging: false, stepsToGo: 0 },
+        { current: Math.floor(Math.random() * 10), final: f1, speed: 4, stopDelay: 12, el: $('slot1'), stopped: false, converging: false, stepsToGo: 0 },
+        { current: Math.floor(Math.random() * 10), final: f2, speed: 2, stopDelay: 0,  el: $('slot2'), stopped: false, converging: false, stepsToGo: 0 }
+    ];
+
     overlay.classList.add('show');
     slotAnimRaf = requestAnimationFrame(slotAnimLoop);
 }
 
 function slotAnimLoop() {
-    if (slotStopRequested) {
-        // 停止：显示最终结果
-        $('slot1').textContent = slotFinalDigit1;
-        $('slot2').textContent = slotFinalDigit2;
+    slotFrameCount++;
+
+    // 检查是否全部停止
+    const allStopped = slotReels.every(r => r.stopped);
+    if (allStopped) {
+        const f0 = slotReels[0].final;
+        const f1 = slotReels[1].final;
+        const f2 = slotReels[2].final;
+        const finalValue = f1 * 10 + f2; // 实际结果：十位×10 + 个位
+
+        $('slot0').textContent = f0;
+        $('slot1').textContent = f1;
+        $('slot2').textContent = f2;
+        $('slot0').classList.add('stopped');
         $('slot1').classList.add('stopped');
         $('slot2').classList.add('stopped');
 
-        // 当第二位是0时，第一位不显示0（避免显示 "00X"）
-        if (slotFinalDigit1 === 0) {
-            $('slot0').textContent = '';
-            $('slot0').style.visibility = 'hidden';
-        } else {
-            $('slot0').textContent = '0';
-            $('slot0').style.visibility = 'visible';
-        }
-        $('slot0').classList.add('stopped');
-
-        // 显示结果（去掉前导零）
-        const finalValue = slotFinalDigit1 * 10 + slotFinalDigit2; // 0-29
         if (slotIsPositive) {
             $('slotResult').textContent = '🎉 获得 ' + finalValue + ' 积分！';
             $('slotResult').className = 'slot-result positive';
@@ -888,9 +954,53 @@ function slotAnimLoop() {
         return;
     }
 
-    // 滚动中：随机数字
-    $('slot1').textContent = Math.floor(Math.random() * 10);
-    $('slot2').textContent = Math.floor(Math.random() * 10);
+    // 处理每列
+    slotReels.forEach(r => {
+        if (r.stopped) { r.el.textContent = r.current; return; }
+
+        if (!slotStopRequested) {
+            // 自由滚动：每 speed 帧前进一位
+            if (slotFrameCount % r.speed === 0) {
+                r.current = (r.current + 1) % 10;
+            }
+        } else {
+            // 停止阶段
+            if (!r.converging) {
+                r.stopDelay--;
+                if (r.stopDelay <= 0) {
+                    // 开始收敛到目标数字
+                    r.converging = true;
+                    r.stepsToGo = (r.final - r.current + 10) % 10;
+                    if (r.stepsToGo === 0) {
+                        r.stopped = true;
+                        r.el.classList.add('stopped');
+                        return;
+                    }
+                    // 收敛时每2帧走一步
+                    r._convSpeed = 2;
+                } else {
+                    // 还在等延迟 — 继续自由滚动
+                    if (slotFrameCount % r.speed === 0) {
+                        r.current = (r.current + 1) % 10;
+                    }
+                }
+            } else {
+                // 收敛中
+                if (slotFrameCount % r._convSpeed === 0) {
+                    r.current = (r.current + 1) % 10;
+                    r.stepsToGo--;
+                    if (r.stepsToGo <= 0) {
+                        r.stopped = true;
+                        r.el.classList.add('stopped');
+                        return;
+                    }
+                }
+            }
+        }
+
+        r.el.textContent = r.current;
+    });
+
     slotAnimRaf = requestAnimationFrame(slotAnimLoop);
 }
 

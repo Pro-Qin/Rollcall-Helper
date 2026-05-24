@@ -70,7 +70,7 @@
         <p style="font-size:12px;color:var(--text-muted);margin-top:8px">
             导出配置：保存所有奖项和设置到JSON文件。<br>
             导入配置：从JSON文件恢复奖项和设置。<br>
-            默认奖项：一键加载预设奖项（积分清零/翻倍/奶茶一杯~等，按百分比分配）。
+            默认奖项：一键加载预设奖项（积分翻倍/增长/交换/减少/奶茶一杯~等，按百分比分配）。
         </p>
     </div>
 </div>
@@ -210,22 +210,25 @@
 
 <!-- 积分老虎机弹窗 -->
 <div class="overlay slot-overlay" id="slotOverlay">
-    <div class="slot-card">
-        <div class="slot-title" id="slotTitle">🎰 积分老虎机 🎰</div>
-        <div class="slot-subtitle" id="slotSubtitle">点击「停止」按钮结束滚动</div>
-        <div class="slot-display">
-            <div class="slot-window">
-                <div class="slot-digit" id="slot0">0</div>
-                <div class="slot-digit" id="slot1">?</div>
-                <div class="slot-digit" id="slot2">?</div>
+    <div class="slot-layout">
+        <div class="slot-info-card" id="slotInfoCard">
+            <div class="slot-info-title">📋 规则说明</div>
+            <div class="slot-info-body" id="slotInfoContent"></div>
+        </div>
+        <div class="slot-card">
+            <div class="slot-title" id="slotTitle">🎰 积分老虎机 🎰</div>
+            <div class="slot-subtitle" id="slotSubtitle">点击「停止」按钮结束滚动</div>
+            <div class="slot-display">
+                <div class="slot-window">
+                    <div class="slot-digit" id="slot0">0</div>
+                    <div class="slot-digit" id="slot1">0</div>
+                    <div class="slot-digit" id="slot2">0</div>
+                </div>
             </div>
+            <div class="slot-result" id="slotResult"></div>
+            <button class="res-close" id="slotStopBtn" onclick="stopSlotManual()">🛑 停止</button>
+            <button class="res-close" id="slotCloseBtn" onclick="closeSlot()" style="display:none">确定</button>
         </div>
-        <div class="slot-prob">
-            概率说明：第二位 5%概率→2，25%概率→1，70%概率→0；第三位 0-9 纯随机
-        </div>
-        <div class="slot-result" id="slotResult"></div>
-        <button class="res-close" id="slotStopBtn" onclick="stopSlotManual()">🛑 停止</button>
-        <button class="res-close" id="slotCloseBtn" onclick="closeSlot()" style="display:none">确定</button>
     </div>
 </div>
 

@@ -321,10 +321,41 @@
         .empty-hint .eh-icon { font-size: 42px; margin-bottom: 10px; opacity: 0.5; }
 
     /* ===== 积分老虎机样式 ===== */
+    .slot-layout {
+        display: flex; align-items: flex-start; gap: 24px;
+        max-width: 720px; width: 94%;
+    }
+    .slot-info-card {
+        background: var(--bg-secondary); border: 1px solid var(--border);
+        border-radius: 20px; padding: 22px 20px; min-width: 180px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .slot-info-title {
+        font-size: 15px; font-weight: 700; color: var(--accent);
+        margin-bottom: 14px; padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+    }
+    .slot-info-body { font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+    .slot-rule-row {
+        display: flex; align-items: flex-start; gap: 10px;
+        margin-bottom: 10px; padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .slot-rule-label {
+        font-weight: 700; color: #fbbf24; font-size: 20px;
+        font-family: 'Courier New', monospace; min-width: 56px;
+    }
+    .slot-rule-val { color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+    .slot-rule-note {
+        font-size: 11px; color: #64748b; margin-top: 8px;
+        padding: 6px 10px; background: rgba(99,102,241,0.08);
+        border-radius: 8px; border-left: 2px solid var(--accent);
+    }
     .slot-card {
         background: var(--bg-secondary); border: 1px solid var(--border);
-        border-radius: 28px; padding: 40px 40px 36px; text-align: center;
-        max-width: 500px; width: 92%;
+        border-radius: 28px; padding: 36px 34px 32px; text-align: center;
+        flex: 1; min-width: 0;
         box-shadow: 0 30px 80px rgba(0,0,0,0.5);
         animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
     }
@@ -372,10 +403,6 @@
     .slot-digit.stopped {
         color: #10b981; text-shadow: 0 0 18px rgba(16,185,129,0.5);
         transform: scale(1.05);
-    }
-    .slot-prob {
-        font-size: 12px; color: var(--text-muted); line-height: 1.7;
-        margin-bottom: 12px;
     }
     .slot-result {
         font-size: 20px; font-weight: 700; margin-top: 10px; min-height: 32px;
